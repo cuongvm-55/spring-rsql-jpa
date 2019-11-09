@@ -8,7 +8,9 @@ import javax.persistence.PersistenceContext;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,33 +43,31 @@ public class UserController {
     @PersistenceContext
 	EntityManager manager;
  
+    //localhost:8080/api/users?search=(subgroup.id==12 and (createdAt=ge=20191109))&sort=+firstName&sort=+lastName&size=1&page=1
     @GetMapping
     @ResponseBody
     public RestResponseModel<List<User>> search(@RequestParam(value = "search") String search,
-    							Pageable pageable) {
-    	/*
-    	// Create criteria and from 
-    	CriteriaBuilder builder = manager.getCriteriaBuilder();
-    	CriteriaQuery<User> criteria = builder.createQuery(User.class);
-    	Root<User> root = criteria.from(User.class);
+    		@RequestParam(defaultValue = "20") int size,
+    		@RequestParam(defaultValue = "0") int page,
+    		@RequestParam List<String> sort) {
+    	Sort sortObj = Sort.unsorted();
+    	if (sort != null) {
+    		for (String string : sort) {
+				System.out.println(string);
+				if (string.startsWith("-")) {
+					sortObj = sortObj.and(Sort.by(Sort.Direction.DESC, string.replace("-", "").trim()));
+				}
+				else {
+					sortObj = sortObj.and(Sort.by(Sort.Direction.ASC, string.replace("+", "").trim()));
+				}
+			}
+    	}	
+    	Pageable pageable = PageRequest.of(page, size, sortObj);
 
-    	// Create the JPA Predicate Visitor
-    	RSQLVisitor<Predicate, EntityManager> visitor = new JpaPredicateVisitor<User>().defineRoot(root);
-
-    	// Parse a RSQL into a Node
-    	Node rootNode = new RSQLParser().parse(search);
-
-    	// Visit the node to retrieve CriteriaQuery
-    	Predicate predicate = rootNode.accept(visitor, manager);
-
-    	// Use generated predicate as you like
-    	//criteria.where(predicate);
-    	*/
-    	//TypedQuery<User> query = manager.createQuery(criteria);
-        //return query.getResultList();
     	Specification<User> userSpec = new UserSpecification(manager)
     			.getUserSearchSpecification(search);
     	Page<User> userPage = repo.findAll(userSpec, pageable);
+    	
     	PagingData pagingData = PagingData.createFromPage(userPage);
     	pagingData.setSearch(search);
     	pagingData.setSort(pageable.getSort().toString());

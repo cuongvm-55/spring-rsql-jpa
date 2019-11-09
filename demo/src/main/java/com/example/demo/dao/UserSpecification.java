@@ -10,6 +10,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import com.example.demo.entity.User;
 import com.github.tennaito.rsql.jpa.JpaPredicateVisitor;
+import com.github.tennaito.rsql.misc.ArgumentParser;
 
 import cz.jirutka.rsql.parser.RSQLParser;
 import cz.jirutka.rsql.parser.ast.Node;
@@ -26,16 +27,24 @@ public class UserSpecification {
 		return new Specification<User>() {
 			private static final long serialVersionUID = -6727025419491153701L;
 
+			public ArgumentParser getArgumentParser() {
+				return new CustomRsqlArgumentParser();
+			}
+			
 			@Override
 		    public Predicate toPredicate(Root<User> root,
 		                                 CriteriaQuery<?> query,
 		                                 CriteriaBuilder criteriaBuilder) {
-		    	// Create the JPA Predicate Visitor
-		    	RSQLVisitor<Predicate, EntityManager> visitor = new JpaPredicateVisitor<User>().defineRoot(root);
+				// Setup visitor with custom argument parser
+				JpaPredicateVisitor<User> visitor = new JpaPredicateVisitor<User>();
+				visitor.getBuilderTools().setArgumentParser(getArgumentParser());
+				
+				RSQLVisitor<Predicate, EntityManager> visitors = visitor.defineRoot(root);
+				
 		    	// Parse a RSQL into a Node
 		    	Node rootNode = new RSQLParser().parse(search);
 		    	// Visit the node to retrieve CriteriaQuery
-		    	return rootNode.accept(visitor, entityManager);
+		    	return rootNode.accept(visitors, entityManager);
 		    }
 		};
 	}
